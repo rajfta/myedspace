@@ -1,0 +1,98 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Course {
+  id        String   @id @default(uuid())
+  subject   String
+  yearRange String
+  price     Int
+  createdAt DateTime @default(now())
+
+  orders      Order[]
+  enrollments Enrollment[]
+  lessons     Lesson[]
+
+  @@map("courses")
+}
+
+model Order {
+  id           String   @id @default(uuid())
+  courseId     String
+  course       Course   @relation(fields: [courseId], references: [id])
+  parentEmail  String
+  studentEmail String
+  amount       Int
+  createdAt    DateTime @default(now())
+
+  enrollment Enrollment?
+
+  @@map("orders")
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVATED
+}
+
+model Enrollment {
+  id               String           @id @default(uuid())
+  orderId          String           @unique
+  order            Order            @relation(fields: [orderId], references: [id])
+  courseId         String
+  course           Course           @relation(fields: [courseId], references: [id])
+  studentEmail     String
+  invitationToken  String           @unique @default(uuid())
+  status           EnrollmentStatus @default(PENDING)
+  studentId        String?
+  student          Student?         @relation(fields: [studentId], references: [id])
+  createdAt        DateTime         @default(now())
+  activatedAt      DateTime?
+
+  @@map("enrollments")
+}
+
+model Student {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  fullName     String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  enrollments Enrollment[]
+  progress    LessonProgress[]
+
+  @@map("students")
+}
+
+model Lesson {
+  id          String  @id @default(uuid())
+  courseId    String
+  course      Course  @relation(fields: [courseId], references: [id])
+  title       String
+  description String
+  content     String
+  order       Int
+
+  progress LessonProgress[]
+
+  @@map("lessons")
+}
+
+model LessonProgress {
+  id          String    @id @default(uuid())
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id])
+  lessonId    String
+  lesson      Lesson    @relation(fields: [lessonId], references: [id])
+  completedAt DateTime  @default(now())
+
+  @@unique([studentId, lessonId])
+  @@map("lesson_progress")
+}
