@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyEdSpace — Architecture &amp; Data Flow</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #1c2530;
+    --muted: #64748b;
+    --line: #d7dce3;
+    --frontend: #2563eb;
+    --frontend-bg: #eaf1ff;
+    --backend: #16a34a;
+    --backend-bg: #eafbf1;
+    --db: #9333ea;
+    --db-bg: #f6edfe;
+    --pkg: #b45309;
+    --pkg-bg: #fdf3e3;
+    --arrow: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 28px 32px 20px;
+  }
+  header h1 { margin: 0 0 6px; font-size: 24px; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  nav {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  nav a {
+    font-size: 13px;
+    color: var(--ink);
+    text-decoration: none;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+  nav a:hover { border-color: var(--frontend); color: var(--frontend); }
+  main { max-width: 1100px; margin: 0 auto; padding: 32px; }
+  section { margin-bottom: 56px; }
+  section h2 {
+    font-size: 19px;
+    margin: 0 0 4px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--line);
+  }
+  section > p.desc { color: var(--muted); font-size: 14px; margin: 8px 0 24px; max-width: 760px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  /* ---- generic box ---- */
+  .box {
+    border-radius: 10px;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    padding: 10px 14px;
+    font-size: 13px;
+    text-align: center;
+    min-width: 120px;
+  }
+  .box .title { font-weight: 600; font-size: 13.5px; }
+  .box .sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .box.frontend { border-color: var(--frontend); background: var(--frontend-bg); }
+  .box.backend  { border-color: var(--backend); background: var(--backend-bg); }
+  .box.db       { border-color: var(--db); background: var(--db-bg); }
+  .box.pkg      { border-color: var(--pkg); background: var(--pkg-bg); border-style: dashed; }
+
+  /* ---- component diagram ---- */
+  .container-boundary {
+    border: 2px dashed #b7c0cc;
+    border-radius: 14px;
+    padding: 28px 20px 20px;
+    position: relative;
+    margin-top: 30px;
+  }
+  .container-boundary .boundary-label {
+    position: absolute;
+    top: -13px;
+    left: 20px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: .03em;
+    text-transform: uppercase;
+  }
+  .flow-row-h {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .h-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 64px;
+    color: var(--muted);
+    font-size: 10.5px;
+  }
+  .h-arrow .shaft {
+    width: 100%;
+    height: 2px;
+    background: var(--arrow);
+    position: relative;
+    margin-top: 4px;
+  }
+  .h-arrow .shaft::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -4px;
+    border-left: 7px solid var(--arrow);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+
+  .modules-box {
+    border: 1.5px solid var(--backend);
+    background: var(--backend-bg);
+    border-radius: 10px;
+    padding: 14px;
+    min-width: 380px;
+  }
+  .modules-box .title { font-weight: 600; font-size: 13.5px; text-align: center; margin-bottom: 10px; }
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .module-chip {
+    background: #fff;
+    border: 1px solid #bfe6cc;
+    border-radius: 8px;
+    padding: 6px 4px;
+    font-size: 11.5px;
+    text-align: center;
+  }
+  .module-chip.core { grid-column: span 3; border-style: dashed; color: var(--muted); }
+
+  .buildtime-branch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px dashed var(--line);
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ---- sequence / relationship rows ---- */
+  .seq {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .msg { }
+  .msg .label {
+    font-size: 12.5px;
+    color: var(--ink);
+    margin-bottom: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .msg .note { font-size: 11.5px; color: var(--muted); margin-top: 3px; font-family: inherit; }
+  .msg-line {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .actor-chip {
+    flex: 0 0 auto;
+    min-width: 130px;
+    text-align: center;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1.5px solid var(--line);
+    background: #fff;
+  }
+  .actor-chip.browser  { border-color: var(--frontend); background: var(--frontend-bg); color: #1e3a8a; }
+  .actor-chip.gateway   { border-color: #64748b; background: #f1f5f9; color: #334155; }
+  .actor-chip.backend   { border-color: var(--backend); background: var(--backend-bg); color: #14532d; }
+  .actor-chip.db        { border-color: var(--db); background: var(--db-bg); color: #581c87; }
+
+  .arrow-shaft {
+    flex: 1;
+    height: 2px;
+    background: var(--arrow);
+    position: relative;
+    margin: 0 10px;
+    min-width: 40px;
+  }
+  .arrow-shaft.reply { background: repeating-linear-gradient(90deg, var(--arrow) 0 6px, transparent 6px 10px); }
+  .arrow-shaft::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -4px;
+    border-left: 8px solid var(--arrow);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+  .arrow-shaft.leftward::after {
+    right: auto;
+    left: -1px;
+    border-left: none;
+    border-right: 8px solid var(--arrow);
+  }
+
+  .seq-block {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px;
+    background: #fbfcfd;
+  }
+  .seq-block + .seq-block { margin-top: 22px; }
+  .seq-block h3 { margin: 0 0 4px; font-size: 15px; }
+  .seq-block .flow-desc { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; }
+
+  /* ---- ER diagram ---- */
+  .er-entities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    justify-content: center;
+    margin-bottom: 26px;
+  }
+  .entity {
+    border: 1.5px solid var(--db);
+    border-radius: 10px;
+    background: #fff;
+    min-width: 190px;
+    overflow: hidden;
+  }
+  .entity .ehead {
+    background: var(--db-bg);
+    font-weight: 700;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--db);
+  }
+  .entity ul {
+    list-style: none;
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 11.5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .entity li { padding: 2px 0; color: #334155; }
+  .entity li b { color: var(--db); font-weight: 700; }
+  .entity li .ftype { color: var(--muted); }
+
+  .rel-list { display: flex; flex-direction: column; gap: 10px; }
+  .rel-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    flex-wrap: wrap;
+  }
+  .rel-row .card {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    background: var(--db-bg);
+    color: var(--db);
+    border: 1px solid var(--db);
+    border-radius: 6px;
+    padding: 2px 7px;
+    white-space: nowrap;
+  }
+  .rel-row .rel-note { color: var(--muted); }
+
+  footer {
+    text-align: center;
+    padding: 28px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  code { background: #eef1f5; padding: 1px 5px; border-radius: 4px; font-size: 90%; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MyEdSpace — Architecture &amp; Data Flow</h1>
+  <p>Static reference doc, hand-maintained. Reflects the state of <code>main</code> as of 2026-07-04. Companion to the root <code>README.md</code> and <code>docs/ai-plan/</code>.</p>
+  <nav>
+    <a href="#components">Component diagram</a>
+    <a href="#flow-purchase">1. Purchase flow</a>
+    <a href="#flow-onboarding">2. Onboarding flow</a>
+    <a href="#flow-lms">3. LMS access flow</a>
+    <a href="#data-model">Data model (ER)</a>
+  </nav>
+</header>
+
+<main>
+
+  <section id="components">
+    <h2>System components</h2>
+    <p class="desc">Three Docker Compose services. The browser only ever talks to nginx on a single origin (<code>:3000</code>) — nginx reverse-proxies <code>/api/*</code> to the backend, so there's no CORS configuration anywhere in the stack.</p>
+
+    <div class="panel">
+      <div class="container-boundary">
+        <div class="boundary-label">docker compose</div>
+
+        <div class="flow-row-h">
+          <div class="box frontend">
+            <div class="title">Browser</div>
+            <div class="sub">React SPA (host machine)</div>
+          </div>
+
+          <div class="h-arrow"><span>HTTP :3000</span><div class="shaft"></div></div>
+
+          <div class="box" style="border-color:#64748b;background:#f1f5f9;">
+            <div class="title">nginx</div>
+            <div class="sub">static build + reverse proxy</div>
+          </div>
+
+          <div class="h-arrow"><span>/api/* :4000</span><div class="shaft"></div></div>
+
+          <div class="modules-box">
+            <div class="title">NestJS API</div>
+            <div class="modules-grid">
+              <div class="module-chip">courses</div>
+              <div class="module-chip">orders</div>
+              <div class="module-chip">enrollments</div>
+              <div class="module-chip">auth (JWT)</div>
+              <div class="module-chip">lms</div>
+              <div class="module-chip core">PrismaService (global)</div>
+            </div>
+          </div>
+
+          <div class="h-arrow"><span>SQL :5432</span><div class="shaft"></div></div>
+
+          <div class="box db">
+            <div class="title">Postgres</div>
+            <div class="sub">courses, orders, enrollments,<br>students, lessons, progress</div>
+          </div>
+        </div>
+
+        <div class="buildtime-branch">
+          <div class="box pkg">
+            <div class="title">packages/types</div>
+            <div class="sub">response-shape interfaces</div>
+          </div>
+          <span>⇢ build-time import only, not a runtime dependency ⇢</span>
+          <div class="box frontend" style="min-width:100px;">
+            <div class="title">frontend build</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="flow-purchase">
+    <div class="seq-block">
+      <h3>1. Purchase flow</h3>
+      <p class="flow-desc">Parent lands on the product page, buys a course, mock checkout runs, an invitation link is generated. No real payment is ever charged or stored.</p>
+      <div class="seq">
+
+        <div class="msg">
+          <div class="label">GET /api/courses</div>
+          <div class="msg-line">
+            <div class="actor-chip browser">Parent Browser</div>
+            <div class="arrow-shaft"></div>
+            <div class="actor-chip gateway">nginx</div>
+            <div class="arrow-shaft"></div>
+            <div class="actor-chip backend">CoursesController</div>
+          </div>
+          <div class="note">Public route. Renders the product page: Maths, English, Science — subject, year range, price.</div>
+        </div>
+
+        <div class="msg">
+          <div class="label">POST /api/orders  { courseId, parentEmail, studentEmail, card fields }</div>
+          <div class="msg-line">
+            <div class="actor-chip browser">Parent Browser</div>
+            <div class="arrow-shaft"></div>
+            <div class="actor-chip backend">OrdersController → OrdersService</div>
+            <div class="arrow-shaft"></div>
+            <div class="actor-chip db">Postgres</div>
+          </div>
+          <div class="note">Card fields validated for shape only, never charged. Service creates an <code>Order</code> row, then a <code>PENDING</code> <code>Enrollment</code> row with a unique <code>invitationToken</code>.</div>
+        </div>
+
+        <div class="msg">
+          <div class="label">200 OK  { orderId, course, invitationToken, invitationPath }</div>
+          <div class="msg-line">
+            <div class="actor-chip db">Postgres</div>
+            <div class="arrow-shaft reply leftward"></div>
+            <div class="actor-chip backend">OrdersService</div>
+            <div class="arrow-shaft reply leftward"></div>
+            <div class="actor-chip browser">Parent Browser</div>
+          </div>
+          <div class="note">Confirmation screen shows the invitation link directly (no email provider integrated) — <code>/onboard/:invitationToken</code>.</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section id="flow-onboarding">
+    <div class="seq-block">
+      <h3>2. Student onboarding flow</h3>
+      <p class="flow-desc">Student opens the invitation link, sets a password (or, if that email already has an account, just confirms adding the new course to it), and receives a JWT.</p>
+      <div class="seq">
+
+        <div class="msg">
+          <div class="label">GET /api/enrollments/:token</div>
+          <div class="msg-line">
+            <div class="actor-chip browser">Student Browser</div>
+            <div class="arrow-shaft"></div>
+            <div class="actor-chip backend">EnrollmentsController → EnrollmentsService</div>
+            <div class="arrow-shaft"></div>
+            <div class="actor-chip db">Postgres</div>
+          </div>
+          <div class="note">Resolves the token. Three outcomes: invalid token → error page · already <code>ACTIVATED</code> → "already used, log in instead" · <code>PENDING</code> and email has no <code>Student</code> yet → full form · <code>PENDING</code> and email already has a <code>Student</code> → simplified "Welcome back!" panel (multi-course reuse).</div>
+        </div>
+
+        <div class="msg">
+          <div class="label">POST /api/enrollments/:token/activate  { fullName?, password? }</div>
+          <div class="msg-line">
+            <div class="actor-chip browser">Student Browser</div>
+            <div class="arrow-shaft"></div>
+            <div class="actor-chip backend">EnrollmentsService</div>
+            <div class="arrow-shaft"></div>
+            <div class="actor-chip db">Postgres</div>
+          </div>
+          <div class="note">New email → creates <code>Student</code> (bcrypt-hashed password) and links it. Existing email → links the new <code>Enrollment</code> to the existing <code>Student</code>, no fields required. Either way, <code>Enrollment.status</code> → <code>ACTIVATED</code>.</div>
+        </div>
+
+        <div class="msg">
+          <div class="label">200 OK  { accessToken, student }</div>
+          <div class="msg-line">
+            <div class="actor-chip db">Postgres</div>
+            <div class="arrow-shaft reply leftward"></div>
+            <div class="actor-chip backend">AuthService (JWT sign)</div>
+            <div class="arrow-shaft reply leftward"></div>
+            <div class="actor-chip browser">Student Browser</div>
+          </div>
+          <div class="note">Token stored client-side, browser redirected straight into <code>/lms</code>.</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section id="flow-lms">
+    <div class="seq-block">
+      <h3>3. LMS access flow</h3>
+      <p class="flow-desc">Every route below is guarded by a Passport JWT strategy. No token, expired token, or a course the student never purchased all fail closed.</p>
+      <div class="seq">
+
+        <div class="msg">
+          <div class="label">GET /api/me · GET /api/courses/:id/lessons · GET /api/lessons/:id&nbsp;&nbsp;&nbsp;Authorization: Bearer &lt;jwt&gt;</div>
+          <div class="msg-line">
+            <div class="actor-chip browser">Student Browser</div>
+            <div class="arrow-shaft"></div>
+            <div class="actor-chip backend">JwtAuthGuard → LmsController</div>
+          </div>
+          <div class="note">Guard rejects with <b>401</b> before the controller runs if the token is missing/invalid — confirmed live: clearing <code>localStorage</code> and reloading redirects to <code>/login</code> without ever reaching the API.</div>
+        </div>
+
+        <div class="msg">
+          <div class="label">enrollment ownership check</div>
+          <div class="msg-line">
+            <div class="actor-chip backend">LmsService</div>
+            <div class="arrow-shaft"></div>
+            <div class="actor-chip db">Postgres</div>
+          </div>
+          <div class="note">Looks up the student's <code>ACTIVATED</code> enrollments. Course/lesson access is checked against that set — a course never purchased returns <b>403</b> ("You do not have access to this course."), verified live.</div>
+        </div>
+
+        <div class="msg">
+          <div class="label">200 OK  { dashboard | lessons[] | lesson }</div>
+          <div class="msg-line">
+            <div class="actor-chip db">Postgres</div>
+            <div class="arrow-shaft reply leftward"></div>
+            <div class="actor-chip backend">LmsService</div>
+            <div class="arrow-shaft reply leftward"></div>
+            <div class="actor-chip browser">Student Browser</div>
+          </div>
+          <div class="note">Dashboard lists enrolled courses; lesson list shows per-lesson completion; <code>POST /api/lessons/:id/complete</code> writes a <code>LessonProgress</code> row, persisted server-side (survives a hard reload).</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section id="data-model">
+    <h2>Data model</h2>
+    <p class="desc">Prisma schema, Postgres. <code>Enrollment</code> is the join between a purchase and a student — a <code>Student</code> can hold multiple enrollments (buying a second course for an already-activated email reuses the account).</p>
+
+    <div class="panel">
+      <div class="er-entities">
+
+        <div class="entity">
+          <div class="ehead">Course</div>
+          <ul>
+            <li><b>id</b> <span class="ftype">uuid</span></li>
+            <li>subject <span class="ftype">string</span></li>
+            <li>yearRange <span class="ftype">string</span></li>
+            <li>price <span class="ftype">int</span></li>
+            <li>createdAt <span class="ftype">datetime</span></li>
+          </ul>
+        </div>
+
+        <div class="entity">
+          <div class="ehead">Order</div>
+          <ul>
+            <li><b>id</b> <span class="ftype">uuid</span></li>
+            <li>courseId <span class="ftype">fk</span></li>
+            <li>parentEmail <span class="ftype">string</span></li>
+            <li>studentEmail <span class="ftype">string</span></li>
+            <li>amount <span class="ftype">int</span></li>
+          </ul>
+        </div>
+
+        <div class="entity">
+          <div class="ehead">Enrollment</div>
+          <ul>
+            <li><b>id</b> <span class="ftype">uuid</span></li>
+            <li>orderId <span class="ftype">fk, unique</span></li>
+            <li>courseId <span class="ftype">fk</span></li>
+            <li>studentEmail <span class="ftype">string</span></li>
+            <li>invitationToken <span class="ftype">uuid, unique</span></li>
+            <li>status <span class="ftype">PENDING|ACTIVATED</span></li>
+            <li>studentId <span class="ftype">fk, nullable</span></li>
+            <li>activatedAt <span class="ftype">datetime?</span></li>
+          </ul>
+        </div>
+
+        <div class="entity">
+          <div class="ehead">Student</div>
+          <ul>
+            <li><b>id</b> <span class="ftype">uuid</span></li>
+            <li>email <span class="ftype">string, unique</span></li>
+            <li>fullName <span class="ftype">string</span></li>
+            <li>passwordHash <span class="ftype">string</span></li>
+          </ul>
+        </div>
+
+        <div class="entity">
+          <div class="ehead">Lesson</div>
+          <ul>
+            <li><b>id</b> <span class="ftype">uuid</span></li>
+            <li>courseId <span class="ftype">fk</span></li>
+            <li>title <span class="ftype">string</span></li>
+            <li>description <span class="ftype">string</span></li>
+            <li>content <span class="ftype">string</span></li>
+            <li>order <span class="ftype">int</span></li>
+          </ul>
+        </div>
+
+        <div class="entity">
+          <div class="ehead">LessonProgress</div>
+          <ul>
+            <li><b>id</b> <span class="ftype">uuid</span></li>
+            <li>studentId <span class="ftype">fk</span></li>
+            <li>lessonId <span class="ftype">fk</span></li>
+            <li>completedAt <span class="ftype">datetime</span></li>
+            <li><span class="ftype">unique(studentId, lessonId)</span></li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="rel-list">
+        <div class="rel-row"><span class="card">Course 1 → N Order</span><span class="rel-note">a course can be purchased many times</span></div>
+        <div class="rel-row"><span class="card">Course 1 → N Enrollment</span><span class="rel-note">a course can have many enrollments</span></div>
+        <div class="rel-row"><span class="card">Course 1 → N Lesson</span><span class="rel-note">a course has a fixed lesson list</span></div>
+        <div class="rel-row"><span class="card">Order 1 → 1 Enrollment</span><span class="rel-note">every order immediately produces exactly one pending enrollment</span></div>
+        <div class="rel-row"><span class="card">Student 1 → N Enrollment</span><span class="rel-note">optional until activation — <code>studentId</code> is nullable, set on activate; this is how multi-course reuse works</span></div>
+        <div class="rel-row"><span class="card">Student 1 → N LessonProgress</span><span class="rel-note">completion is tracked per student, not per enrollment</span></div>
+        <div class="rel-row"><span class="card">Lesson 1 → N LessonProgress</span><span class="rel-note">join entity between Student and Lesson, unique per pair</span></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Hand-written HTML/CSS, no external dependencies or build step — open directly in a browser. Not auto-generated; update by hand if the schema or flows change.
+</footer>
+
+</body>
+</html>
