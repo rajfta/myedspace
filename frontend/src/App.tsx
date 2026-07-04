@@ -2,6 +2,8 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
 import { AuthProvider } from './lib/AuthContext';
 import { CheckoutPage } from './pages/CheckoutPage';
+import { LoginPage } from './pages/LoginPage';
+import { OnboardingPage } from './pages/OnboardingPage';
 import { ProductPage } from './pages/ProductPage';
 
 function App() {
@@ -14,6 +16,8 @@ function App() {
             <Routes>
               <Route path="/" element={<ProductPage />} />
               <Route path="/checkout/:courseId" element={<CheckoutPage />} />
+              <Route path="/onboard/:token" element={<OnboardingPage />} />
+              <Route path="/login" element={<LoginPage />} />
             </Routes>
           </main>
         </div>
