@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
 import { AuthProvider } from './lib/AuthContext';
+import { CheckoutPage } from './pages/CheckoutPage';
 import { ProductPage } from './pages/ProductPage';
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
           <main>
             <Routes>
               <Route path="/" element={<ProductPage />} />
+              <Route path="/checkout/:courseId" element={<CheckoutPage />} />
             </Routes>
           </main>
         </div>
