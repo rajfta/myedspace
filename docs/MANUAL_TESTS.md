@@ -2,9 +2,9 @@
 
 Target: `http://localhost:3000` (Docker Compose stack — nginx + NestJS + Postgres)
 Tester: Claude Code, via Chrome DevTools MCP
-Date: 2026-07-04
+Date: 2026-07-04, final re-run 2026-07-05 against this repo's dockerised stack (fresh volume, migrated + seeded on boot)
 
-**Result: 23/23 passed.**
+**Result: 23/23 passed (both runs).**
 
 Status legend: ⬜ not run · ✅ pass · ❌ fail
 
